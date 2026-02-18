@@ -19,6 +19,12 @@ pipeline {
             steps {
                 sh '''
                     set -e
+					echo "==> Create external Docker volumes (if not exist)"
+					
+					docker volume create pixname_pgdata || true
+					docker volume create pixname_grafana-storage || true
+					docker volume create infrastructure_redis_data || true
+
                     echo "==> Local docker-compose build & smoke test"
 
                     cd Infrastructure
