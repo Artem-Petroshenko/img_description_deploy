@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - db.env
+    volumes:
+      - pixname_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pixname"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  ml-core-service:
+    build:
+      context: ../ml-core-service
+      dockerfile: Dockerfile
+    image: ml-core-service:latest
+    ports:
+      - "8000:8080"   # наружу
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  telegram_bot:
+    build:
+      context: ../tg-bot
+      dockerfile: Dockerfile
+    image: tg-bot:latest
+    env_file:
+      - tg-bot.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ml-core-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-enterprise:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - pixname_grafana-storage:/var/lib/grafana
+      - /home/ubuntu/pixname/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:latest
+    depends_on:
+      - ml-core-service
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+
+volumes:
+  pixname_pgdata:
+    external: true
+  pixname_grafana-storage:
+    external: true
+  redis_data:
