@@ -65,6 +65,14 @@
         chdir: "{{ app_dir }}/Infrastructure"
       ignore_errors: yes
 
+    - name: Create external Docker volumes
+      command: docker volume create {{ item }}
+      with_items:
+        - pixname_pgdata
+        - pixname_grafana-storage
+        - infrastructure_redis_data
+      ignore_errors: yes
+
     - name: Build and start application stack
       shell: |
         cd {{ app_dir }}/Infrastructure

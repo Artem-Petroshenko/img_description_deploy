@@ -49,7 +49,7 @@ pipeline {
                         . /home/ubuntu/openrc-jenkins.sh
 
                         echo "==> Ensure keypair does not exist"
-                        openstack keypair delete Petroshenko || true
+                        openstack keypair delete img_description || true
 
                         echo "==> Generate terraform.tfvars"
                         cat > terraform.tfvars <<EOF
