@@ -36,7 +36,7 @@ variable "image_name" {
 variable "flavor_name" {
   description = "Flavor для ВМ"
   type        = string
-  default     = "m1.small"   # как на твоём скрине: 1 vCPU, 2GB RAM, 20GB
+  default     = "m1.medium"   # как на твоём скрине: 1 vCPU, 2GB RAM, 20GB
 }
 
 variable "network_name" {
