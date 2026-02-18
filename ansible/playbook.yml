@@ -1,0 +1,85 @@
+- hosts: img_description
+  become: yes
+  vars:
+    app_dir: /opt/img-description
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Docker and dependencies
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - python3-pip
+        state: present
+
+    - name: Ensure docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user to docker group (to run docker without sudo)
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy Infrastructure folder
+      copy:
+        src: ../Infrastructure/
+        dest: "{{ app_dir }}/Infrastructure/"
+
+    - name: Copy ml-core-service folder
+      copy:
+        src: ../ml-core-service/
+        dest: "{{ app_dir }}/ml-core-service/"
+
+    - name: Copy tg-bot folder
+      copy:
+        src: ../tg-bot/
+        dest: "{{ app_dir }}/tg-bot/"
+
+    - name: Copy .env file (if exists)
+      copy:
+        src: ../Infrastructure/tg-bot.env
+        dest: "{{ app_dir }}/Infrastructure/tg-bot.env"
+        mode: '0600'
+      ignore_errors: yes  # Файл может отсутствовать — это ок для лабы
+
+    - name: Stop and remove old containers (if any)
+      shell: |
+        cd {{ app_dir }}/Infrastructure
+        docker-compose down -v || true
+      args:
+        chdir: "{{ app_dir }}/Infrastructure"
+      ignore_errors: yes
+
+    - name: Build and start application stack
+      shell: |
+        cd {{ app_dir }}/Infrastructure
+        docker-compose up -d --build
+      args:
+        chdir: "{{ app_dir }}/Infrastructure"
+
+    - name: Wait for services to start
+      wait_for:
+        timeout: 30
+      delegate_to: localhost
+
+    - name: Show completion message
+      debug:
+        msg: |
+          ✅ Deployment complete!
+          📁 App dir: {{ app_dir }}
+          🔍 Check logs: cd {{ app_dir }}/Infrastructure && docker-compose logs -f
