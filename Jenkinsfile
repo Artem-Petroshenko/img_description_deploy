@@ -1,14 +1,12 @@
 pipeline {
     agent { label 'k8s-runner' }
 
-    environment {
-        # Yandex Cloud Container Registry
+    environment {        
         CR_REGISTRY_ID    = crpg1hg800n8hofip04v
         CR_FOLDER_ID      = b1gp0ouuf2oaj9r2iubo
-        
-        # Kubernetes
+                
         K8S_NAMESPACE     = 'petroshenko'
-        K8S_CLUSTER_ID    = 'catl6i81g779o87dbfn4'  # можно вообще убрать, если kubectl уже настроен
+        K8S_CLUSTER_ID    = 'catl6i81g779o87dbfn4'
     }
 
     parameters {
