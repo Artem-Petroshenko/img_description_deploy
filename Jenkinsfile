@@ -1,136 +1,143 @@
 pipeline {
-    agent { label 'pav1' }
+    agent { label 'k8s-runner' }
 
     environment {
-        PYTHONNOUSERSITE          = "1"
-        SSH_KEY_PATH              = "/home/ubuntu/.ssh/id_rsa"
-        ANSIBLE_HOST_KEY_CHECKING = "False"
+        # Yandex Cloud Container Registry
+        CR_REGISTRY_ID    = crpg1hg800n8hofip04v
+        CR_FOLDER_ID      = b1gp0ouuf2oaj9r2iubo
+        
+        # Kubernetes
+        K8S_NAMESPACE     = 'petroshenko'
+        K8S_CLUSTER_ID    = 'catl6i81g779o87dbfn4'  # можно вообще убрать, если kubectl уже настроен
+    }
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker image tag')
+        booleanParam(name: 'SKIP_BUILD', defaultValue: false, description: 'Skip build & push')
+        booleanParam(name: 'DRY_RUN', defaultValue: false, description: 'Validate manifests only')
     }
 
     stages {
-
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
-        stage('Build & Smoke test (local)') {
+        stage('Build & Push Images') {
+            when { expression { !params.SKIP_BUILD } }
             steps {
                 sh '''
                     set -e
-					echo "==> Create external Docker volumes (if not exist)"
-					
-					docker volume create pixname_pgdata || true
-					docker volume create pixname_grafana-storage || true
-					docker volume create infrastructure_redis_data || true
-
-                    echo "==> Local docker-compose build & smoke test"
-
+                    echo "==> Authenticate Docker with Yandex Container Registry"
+                    yc container registry configure --docker
+                    
+                    echo "==> Build Docker images"
                     cd Infrastructure
-                    docker-compose down -v || true
-                    docker-compose up -d --build
-
-                    echo "==> Waiting for ML service"
-                    sleep 20
-
-                    echo "==> Curl /api/health"
-                    curl -f http://localhost:8000/api/health
+                    docker-compose build ml-core-service telegram_bot
+                    
+                    echo "==> Tag images for Yandex CR"
+                    docker tag ml-core-service:latest cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
+                    docker tag tg-bot:latest cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}
+                    
+                    echo "==> Push images to Yandex CR"
+                    docker push cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
+                    docker push cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}
+                    
+                    echo "✅ Images pushed: ${IMAGE_TAG}"
                 '''
             }
         }
 
-        stage('Terraform: provision infra') {
+        stage('Update manifests with image tag') {
             steps {
-                dir('openstack') {
-                    sh '''
-                        set -e
-                        echo "==> Source OpenStack creds"
-                        . /home/ubuntu/openrc-jenkins.sh
-
-                        echo "==> Ensure keypair does not exist"
-                        openstack keypair delete img_description || true
-
-                        echo "==> Generate terraform.tfvars"
-                        cat > terraform.tfvars <<EOF
-auth_url      = "${OS_AUTH_URL}"
-tenant_name   = "${OS_PROJECT_NAME}"
-user_name     = "${OS_USERNAME}"
-password      = "${OS_PASSWORD}"
-region        = "${OS_REGION_NAME:-RegionOne}"
-
-image_name    = "ununtu-22.04"
-flavor_name   = "m1.medium"
-network_name  = "sutdents-net"
-
-public_ssh_key = "$(cat /home/ubuntu/.ssh/id_rsa.pub)"
-EOF
-
-                        echo "==> Terraform init"
-                        terraform init -input=false
-
-                        echo "==> Terraform apply"
-                        terraform apply -auto-approve -input=false
-                    '''
-                }
+                sh '''
+                    set -e
+                    echo "==> Update k8s manifests with image tag: ${IMAGE_TAG}"
+                    
+                    sed -i "s|cr.yandex/<REG_ID>/ml-core-service:latest|cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}|g" k8s/ml-core-service.yaml
+                    sed -i "s|cr.yandex/<REG_ID>/tg-bot:latest|cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}|g" k8s/telegram-bot.yaml
+                    
+                    grep "image:" k8s/ml-core-service.yaml k8s/telegram-bot.yaml
+                '''
             }
         }
 
-        stage('Wait for VM SSH') {
+        stage('Validate Kubernetes manifests') {
+            steps {
+                sh '''
+                    set -e
+                    echo "==> Validate manifests syntax"
+                    python3 -c "import yaml; [yaml.safe_load(open(f)) for f in ['k8s/namespace.yaml', 'k8s/postgres.yaml', 'k8s/redis.yaml', 'k8s/ml-core-service.yaml', 'k8s/telegram-bot.yaml', 'k8s/grafana.yaml']]"
+                    
+                    if [ "${DRY_RUN}" = "true" ]; then
+                        echo "==> DRY RUN: kubectl apply --dry-run=client"
+                        kubectl apply -f k8s/ --dry-run=client -n ${K8S_NAMESPACE}
+                        echo "✅ Manifests validated (dry-run)"
+                        exit 0
+                    fi
+                '''
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            when { expression { !params.DRY_RUN } }
+            steps {
+                sh '''
+                    set -e
+                    echo "==> Apply Kubernetes manifests"
+                    kubectl apply -f k8s/namespace.yaml
+                    kubectl apply -f k8s/postgres.yaml
+                    kubectl apply -f k8s/redis.yaml
+                    kubectl apply -f k8s/ml-core-service.yaml
+                    kubectl apply -f k8s/telegram-bot.yaml
+                    kubectl apply -f k8s/grafana.yaml
+                    echo "✅ Manifests applied"
+                '''
+            }
+        }
+
+        stage('Wait for deployments') {
+            when { expression { !params.DRY_RUN } }
+            steps {
+                sh '''
+                    set -e
+                    echo "==> Wait for deployments to be ready"
+                    kubectl rollout status deployment/ml-core-service -n ${K8S_NAMESPACE} --timeout=300s
+                    kubectl rollout status deployment/telegram-bot -n ${K8S_NAMESPACE} --timeout=120s
+                    kubectl rollout status deployment/grafana -n ${K8S_NAMESPACE} --timeout=60s
+                    echo "✅ All deployments ready"
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            when { expression { !params.DRY_RUN } }
             steps {
                 script {
-                    def vmIp = sh(
-                        script: "cd openstack && terraform output -raw Petroshenko-terraform_ip",
+                    def nodeIp = sh(
+                        script: "kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"ExternalIP\")].address}'",
                         returnStdout: true
                     ).trim()
-
-                    echo "Waiting for SSH on ${vmIp}"
-
+                    
+                    if (nodeIp.isEmpty()) {
+                        nodeIp = sh(
+                            script: "kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}'",
+                            returnStdout: true
+                        ).trim()
+                    }
+                    
+                    echo "==> Health check on node: ${nodeIp}"
+                    
                     sh """
                         set -e
-                        for i in \$(seq 1 30); do
-                            echo "==> Checking SSH (${vmIp}) attempt \$i"
-                            if nc -z -w 5 ${vmIp} 22; then
-                                echo "==> SSH is UP!"
-                                exit 0
+                        echo "==> Check ML service health"
+                        for i in \$(seq 1 10); do
+                            if curl -sf --max-time 10 http://${nodeIp}:30100/api/health; then
+                                echo "✅ ML service is healthy"
+                                break
                             fi
-                            echo "==> SSH not ready, sleep 10s"
-                            sleep 10
+                            echo "⏳ Waiting... attempt \$i"
+                            sleep 5
                         done
-                        echo "ERROR: SSH did not start in time"
-                        exit 1
-                    """
-                }
-            }
-        }
-
-        stage('Ansible: deploy to img_description VM') {
-            steps {
-                script {
-                    def vmIp = sh(
-                        script: "cd openstack && terraform output -raw Petroshenko-terraform_ip",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "VM IP from Terraform: ${vmIp}"
-
-                    sh """
-                        set -e
-
-                        # Clean old host key for this IP
-                        mkdir -p ~/.ssh
-                        ssh-keygen -R ${vmIp} || true
-
-                        cd ansible
-
-                        echo "==> Generate inventory.ini"
-                        cat > inventory.ini <<EOF
-[img_description]
-${vmIp} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_PATH}
-EOF
-
-                        echo "==> Run ansible-playbook"
-                        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbook.yml
                     """
                 }
             }
@@ -139,10 +146,16 @@ EOF
 
     post {
         success {
-            echo "✅ Pipeline SUCCESS: img_description_deploy build → infra → deploy completed."
+            echo "🎉 K8s deployment SUCCESS!"
+            echo "📊 Grafana: http://<NODE_IP>:30101"
+            echo "🔍 ML Health: http://<NODE_IP>:30100/api/health"
         }
         failure {
-            echo "❌ Pipeline FAILED. Check logs for details."
+            echo "❌ K8s deployment FAILED"
+            echo "🔎 Debug: kubectl get pods -n petroshenko"
+        }
+        cleanup {
+            cleanWs()
         }
     }
 }
