@@ -13,6 +13,7 @@ spec:
       labels:
         app: telegram-bot
     spec:
+      nodeName: cl1iaomuegs9uu5fg9t7-uter
       containers:
         - name: telegram-bot
           image: cr.yandex/<REG_ID>/tg-bot:latest  # ← замени на свой registry

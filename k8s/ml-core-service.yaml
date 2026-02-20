@@ -13,6 +13,7 @@ spec:
       labels:
         app: ml-core-service
     spec:
+      nodeName: cl1iaomuegs9uu5fg9t7-olyd
       containers:
         - name: ml-core-service
           image: cr.yandex/<REG_ID>/ml-core-service:latest  # ← замени на свой registry

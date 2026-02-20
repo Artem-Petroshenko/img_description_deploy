@@ -13,6 +13,7 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeName: cl1iaomuegs9uu5fg9t7-olyd
       containers:
         - name: postgres
           image: postgres:15-alpine
