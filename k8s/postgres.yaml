@@ -14,8 +14,7 @@ spec:
     metadata:
       labels:
         app: postgres
-    spec:
-      nodeName: cl1iaomuegs9uu5fg9t7-olyd
+    spec:      
       containers:
         - name: postgres
           image: postgres:15-alpine

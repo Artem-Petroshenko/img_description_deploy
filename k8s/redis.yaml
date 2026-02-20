@@ -14,8 +14,7 @@ spec:
     metadata:
       labels:
         app: redis
-    spec:
-      nodeName: cl1iaomuegs9uu5fg9t7-olyd
+    spec:      
       containers:
         - name: redis
           image: redis:7-alpine

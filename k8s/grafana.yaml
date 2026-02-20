@@ -14,8 +14,7 @@ spec:
     metadata:
       labels:
         app: grafana
-    spec:
-      nodeName: cl1iaomuegs9uu5fg9t7-olyd
+    spec:      
       containers:
         - name: grafana
           image: grafana/grafana:latest
