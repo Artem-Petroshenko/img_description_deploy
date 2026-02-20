@@ -54,8 +54,9 @@
       copy:
         src: ../Infrastructure/tg-bot.env
         dest: "{{ app_dir }}/Infrastructure/tg-bot.env"
-        mode: '0600'
-      ignore_errors: yes  # Файл может отсутствовать — это ок для лабы
+        mode: '0644'  
+        owner: "{{ ansible_user }}"  
+      ignore_errors: yes  
 
     - name: Stop and remove old containers (if any)
       shell: |
