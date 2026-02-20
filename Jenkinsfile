@@ -2,8 +2,8 @@ pipeline {
     agent { label 'k8s-runner' }
 
     environment {        
-        CR_REGISTRY_ID    = crpg1hg800n8hofip04v
-        CR_FOLDER_ID      = b1gp0ouuf2oaj9r2iubo
+        CR_REGISTRY_ID    = 'crpg1hg800n8hofip04v'
+        CR_FOLDER_ID      = 'b1gp0ouuf2oaj9r2iubo'
                 
         K8S_NAMESPACE     = 'petroshenko'
         K8S_CLUSTER_ID    = 'catl6i81g779o87dbfn4'
