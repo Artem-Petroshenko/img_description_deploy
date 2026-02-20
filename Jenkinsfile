@@ -65,21 +65,34 @@ pipeline {
         }
 
         stage('Validate Kubernetes manifests') {
-            steps {
-                sh '''
-                    set -e
-                    echo "==> Validate manifests syntax"
-                    python3 -c "import yaml; [yaml.safe_load(open(f)) for f in ['k8s/namespace.yaml', 'k8s/postgres.yaml', 'k8s/redis.yaml', 'k8s/ml-core-service.yaml', 'k8s/telegram-bot.yaml', 'k8s/grafana.yaml']]"
-                    
-                    if [ "${DRY_RUN}" = "true" ]; then
-                        echo "==> DRY RUN: kubectl apply --dry-run=client"
-                        kubectl apply -f k8s/ --dry-run=client -n ${K8S_NAMESPACE}
-                        echo "✅ Manifests validated (dry-run)"
-                        exit 0
-                    fi
-                '''
-            }
-        }
+			steps {
+				sh '''
+					set -e
+					echo "==> Validate manifests syntax"
+					
+					# Проверка YAML-синтаксиса с поддержкой множественных документов
+					python3 -c "
+		import yaml, sys
+		files = ['k8s/namespace.yaml', 'k8s/postgres.yaml', 'k8s/redis.yaml', 'k8s/ml-core-service.yaml', 'k8s/telegram-bot.yaml', 'k8s/grafana.yaml']
+		for f in files:
+			try:
+				list(yaml.safe_load_all(open(f)))
+				print(f'✅ {f} OK')
+			except Exception as e:
+				print(f'❌ {f}: {e}')
+				sys.exit(1)
+		"
+					
+					# Dry-run apply (если включён параметр)
+					if [ "${DRY_RUN}" = "true" ]; then
+						echo "==> DRY RUN: kubectl apply --dry-run=client"
+						kubectl apply -f k8s/ --dry-run=client -n ${K8S_NAMESPACE}
+						echo "✅ Manifests validated (dry-run)"
+						exit 0
+					fi
+				'''
+			}
+		}
 
         stage('Deploy to Kubernetes') {
             when { expression { !params.DRY_RUN } }
