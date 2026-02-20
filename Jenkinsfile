@@ -26,7 +26,7 @@ pipeline {
                 sh '''
                     set -e
                     echo "==> Authenticate Docker with Yandex Container Registry"
-                    yc container registry configure --docker
+                    yc container registry configure-docker
                     
                     echo "==> Build Docker images"
                     cd Infrastructure
