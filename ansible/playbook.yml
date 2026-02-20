@@ -95,10 +95,11 @@
 
     - name: Run Alembic migrations
       shell: |
-        docker-compose run --rm telegram_bot python -m alembic upgrade head
+        docker-compose run --rm --entrypoint python telegram_bot -m alembic upgrade head
       args:
         chdir: "{{ app_dir }}/Infrastructure"
       ignore_errors: yes
+      timeout: 300
 
     - name: Build and start application stack
       shell: |
