@@ -21,29 +21,33 @@ pipeline {
         }
 
         stage('Build & Push Images') {
-            when { expression { !params.SKIP_BUILD } }
-            steps {
-                sh '''
-                    set -e
-                    echo "==> Authenticate Docker with Yandex Container Registry"
-                    yc container registry configure-docker
-                    
-                    echo "==> Build Docker images"
-                    cd Infrastructure
-                    docker-compose build ml-core-service telegram_bot
-                    
-                    echo "==> Tag images for Yandex CR"
-                    docker tag ml-core-service:latest cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
-                    docker tag tg-bot:latest cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}
-                    
-                    echo "==> Push images to Yandex CR"
-                    docker push cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
-                    docker push cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}
-                    
-                    echo "✅ Images pushed: ${IMAGE_TAG}"
-                '''
-            }
-        }
+			when { expression { !params.SKIP_BUILD } }
+			steps {
+				sh '''
+					set -e
+										
+					export PATH="/home/ubuntu/yandex-cloud/bin:$PATH"
+					export YC_CONFIG_DIR=/home/ubuntu/.yc					
+					
+					echo "==> Authenticate Docker with Yandex Container Registry"
+					/home/ubuntu/yandex-cloud/bin/yc container registry configure-docker
+					
+					echo "==> Build Docker images"
+					cd Infrastructure
+					docker-compose build ml-core-service telegram_bot
+					
+					echo "==> Tag images for Yandex CR"
+					docker tag ml-core-service:latest cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
+					docker tag tg-bot:latest cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}
+					
+					echo "==> Push images to Yandex CR"
+					docker push cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
+					docker push cr.yandex/${CR_REGISTRY_ID}/tg-bot:${IMAGE_TAG}
+					
+					echo "✅ Images pushed: ${IMAGE_TAG}"
+				'''
+			}
+		}
 
         stage('Update manifests with image tag') {
             steps {
