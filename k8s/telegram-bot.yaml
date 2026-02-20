@@ -4,6 +4,8 @@ metadata:
   name: telegram-bot
   namespace: petroshenko
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
