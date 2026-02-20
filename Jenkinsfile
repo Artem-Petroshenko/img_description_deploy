@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'k8s-runner' }
+    agent { label 'pav1' }
 
     environment {        
         CR_REGISTRY_ID    = 'crpg1hg800n8hofip04v'
