@@ -86,7 +86,7 @@ pipeline {
 					echo "==> Clean up old deployments (avoid rolling update issues)"
 					kubectl delete deployment --all -n ${K8S_NAMESPACE} 2>/dev/null || true
 					kubectl delete pod --all -n ${K8S_NAMESPACE} 2>/dev/null || true
-					sleep 5  
+					sleep 120  
 					
                     echo "==> Apply Kubernetes manifests"
                     kubectl apply -f k8s/namespace.yaml
