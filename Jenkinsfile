@@ -33,8 +33,9 @@ pipeline {
 					/home/ubuntu/yandex-cloud/bin/yc container registry configure-docker
 					
 					echo "==> Build Docker images"
-					cd Infrastructure
-					docker compose build ml-core-service telegram_bot
+					cd Infrastructure					
+					docker build -t ml-core-service:latest -f ../ml-core-service/Dockerfile ../ml-core-service/									
+					docker build -t tg-bot:latest -f ../tg-bot/Dockerfile ../tg-bot/
 					
 					echo "==> Tag images for Yandex CR"
 					docker tag ml-core-service:latest cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
