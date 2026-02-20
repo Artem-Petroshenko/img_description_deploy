@@ -34,7 +34,7 @@ pipeline {
 					
 					echo "==> Build Docker images"
 					cd Infrastructure
-					docker-compose build ml-core-service telegram_bot
+					docker compose build ml-core-service telegram_bot
 					
 					echo "==> Tag images for Yandex CR"
 					docker tag ml-core-service:latest cr.yandex/${CR_REGISTRY_ID}/ml-core-service:${IMAGE_TAG}
