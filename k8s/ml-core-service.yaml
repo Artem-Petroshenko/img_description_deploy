@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-core-service
+  namespace: petroshenko
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-core-service
+  template:
+    metadata:
+      labels:
+        app: ml-core-service
+    spec:
+      containers:
+        - name: ml-core-service
+          image: cr.yandex/<REG_ID>/ml-core-service:latest  # ← замени на свой registry
+          ports:
+            - containerPort: 8080
+          env:
+            - name: BLIP_MODEL_NAME
+              value: "Salesforce/blip-image-captioning-base"  # base для экономии RAM
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"  # BLIP-base требует ~2GB
+            limits:
+              cpu: "1000m"
+              memory: "4Gi"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 60  # время на загрузку модели
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-core-service
+  namespace: petroshenko
+spec:
+  type: NodePort  # доступ снаружи для тестов
+  selector:
+    app: ml-core-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30100  # произвольный порт 30000-32767

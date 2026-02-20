@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegram-bot
+  namespace: petroshenko
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telegram-bot
+  template:
+    metadata:
+      labels:
+        app: telegram-bot
+    spec:
+      containers:
+        - name: telegram-bot
+          image: cr.yandex/<REG_ID>/tg-bot:latest  # ← замени на свой registry
+          ports:
+            - containerPort: 8080
+          env:
+            # Telegram
+            - name: BOT_TOKEN
+              value: "8089343397:AAEv1xpEPhw2qdJXsnQ1SCM_7bvtchu1vwY"  # ← замени на свой
+            # Database
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "pixname"
+            - name: DB_USER
+              value: "pixname"
+            - name: DB_PASSWORD
+              value: "pixname"
+            # Redis
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            # ML Service
+            - name: ML_SERVICE_URL
+              value: "http://ml-core-service:8080/api"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telegram-bot
+  namespace: petroshenko
+spec:
+  type: ClusterIP  # бот не требует внешнего доступа
+  selector:
+    app: telegram-bot
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
