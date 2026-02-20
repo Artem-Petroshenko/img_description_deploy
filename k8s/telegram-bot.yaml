@@ -3,9 +3,7 @@ kind: Deployment
 metadata:
   name: telegram-bot
   namespace: petroshenko
-spec:
-  strategy:
-    type: Recreate
+spec:  
   replicas: 1
   selector:
     matchLabels:
