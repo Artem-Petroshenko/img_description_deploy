@@ -15,7 +15,7 @@ spec:
     spec:     
       containers:
         - name: telegram-bot
-          image: cr.yandex/<REG_ID>/tg-bot:latest  # ← замени на свой registry
+          image: cr.yandex/crpg1hg800n8hofip04v/tg-bot:latest  # ← замени на свой registry
           ports:
             - containerPort: 8080
           env:
