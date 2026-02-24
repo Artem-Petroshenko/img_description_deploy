@@ -96,7 +96,7 @@
     - name: Build and start application stack
       shell: |
         cd {{ app_dir }}/Infrastructure
-        docker-compose up -d --build
+        docker compose up -d --build
       args:
         chdir: "{{ app_dir }}/Infrastructure"
 
