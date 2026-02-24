@@ -15,7 +15,7 @@ spec:
     spec:      
       containers:
         - name: ml-core-service
-          image: cr.yandex/<REG_ID>/ml-core-service:latest  # ← замени на свой registry
+          image: cr.yandex/crpg1hg800n8hofip04v/ml-core-service:latest  # ← замени на свой registry
           ports:
             - containerPort: 8080
           env:
