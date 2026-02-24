@@ -57,6 +57,8 @@ services:
       ml-core-service:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      disable: true
 
   grafana:
     image: grafana/grafana-enterprise:latest
