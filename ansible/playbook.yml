@@ -99,7 +99,7 @@
       args:
         chdir: "{{ app_dir }}/Infrastructure"
       ignore_errors: yes
-      timeout: 300
+      timeout: 900
 
     - name: Build and start application stack
       shell: |
