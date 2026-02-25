@@ -28,8 +28,8 @@ pipeline {
                     echo "==> Local docker-compose build & smoke test"
 
                     cd Infrastructure
-                    docker compose down -v || true
-                    docker compose up -d --build
+                    docker-compose down -v || true
+                    docker-compose up -d --build
 
                     echo "==> Waiting for ML service"
                     sleep 20
